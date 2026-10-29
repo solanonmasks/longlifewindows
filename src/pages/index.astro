@@ -1,0 +1,562 @@
+---
+// =====================================================================
+// index.astro: the whole one-page site.
+// Text, phone numbers and photos come from src/data/site.js.
+// Styles are in src/styles/global.css.
+// Sections below are in page order: top bar, header, hero, proof strip,
+// products, story, neighbourhood, promises, consult, footer, mobile bar,
+// lightbox. The <script> at the bottom adds the interactive bits.
+// =====================================================================
+import { Image, getImage } from 'astro:assets';
+import '../styles/global.css';
+import {
+  business, FORM_ENDPOINT, seo, images, topBarText, nav, heroCopy, proof,
+  products, productsNote, story, timeline, cities, homes, promises, consult,
+} from '../data/site.js';
+
+const tel = `tel:${business.phoneTel}`;
+const addr = business.address;
+
+// Large versions of the neighbourhood photos for the lightbox
+const homesWithFull = await Promise.all(
+  homes.map(async (h) => ({
+    ...h,
+    full: (await getImage({ src: h.image, width: Math.min(1600, h.image.width), format: 'webp' })).src,
+  }))
+);
+
+// City buttons: "All" first, then each city with its photo count
+const cityButtons = [
+  { name: 'All', count: homes.length },
+  ...cities.map((c) => ({ name: c, count: homes.filter((h) => h.city === c).length })),
+];
+
+// Social preview image (Open Graph) and search engine details
+const ogImage = await getImage({ src: images.hero, width: 1200, format: 'jpg' });
+const ogImageUrl = new URL(ogImage.src, Astro.site).href;
+const canonical = new URL('/', Astro.site).href;
+const logoUrl = new URL((await getImage({ src: images.logo, format: 'png' })).src, Astro.site).href;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'HomeAndConstructionBusiness',
+  name: business.name,
+  legalName: business.legalName,
+  url: canonical,
+  logo: logoUrl,
+  image: ogImageUrl,
+  description: seo.description,
+  telephone: `+${business.phoneTel}`,
+  email: business.email,
+  foundingDate: business.foundingYear,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: addr.street,
+    addressLocality: addr.city,
+    addressRegion: addr.region,
+    postalCode: addr.postalCode,
+    addressCountry: addr.country,
+  },
+  areaServed: business.areaServed.map((name) => ({ '@type': 'City', name })),
+  sameAs: Object.values(business.socials),
+};
+---
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{seo.title}</title>
+  <meta name="description" content={seo.description} />
+  <link rel="canonical" href={canonical} />
+  <meta name="theme-color" content={seo.themeColor} />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_CA" />
+  <meta property="og:site_name" content={business.name} />
+  <meta property="og:title" content={seo.title} />
+  <meta property="og:description" content={seo.description} />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:image" content={ogImageUrl} />
+  <meta property="og:image:width" content={String(ogImage.attributes.width ?? 1200)} />
+  <meta property="og:image:height" content={String(ogImage.attributes.height ?? 625)} />
+  <meta property="og:image:alt" content={heroCopy.imageAlt} />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,500;0,600;0,700;1,600&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+</head>
+<body>
+<div id="top" class="page">
+
+  <!-- ============ Top bar ============ -->
+  <div class="topbar">
+    <div class="wrap">
+      <span>{topBarText}</span>
+      <a href={tel}>Call us {business.phoneDisplay}</a>
+    </div>
+  </div>
+
+  <!-- ============ Header ============ -->
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="#top" class="logo-link">
+        <Image src={images.logo} alt={business.name} height={64} densities={[1, 2]} loading="eager" />
+      </a>
+      <nav class="main-nav" aria-label="Main">
+        {nav.map((item) => <a href={item.href}>{item.label}</a>)}
+      </nav>
+      <div class="header-actions">
+        <a href="#consult" class="btn btn-red header-cta">Free consultation</a>
+        <button class="menu-btn" type="button" aria-expanded="false" aria-controls="mobile-menu" data-menu-btn>
+          <span class="sr-only">Menu</span>
+          <svg class="icon-open" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2.5" fill="none" /></svg>
+          <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.5" fill="none" /></svg>
+        </button>
+      </div>
+    </div>
+    <nav id="mobile-menu" class="mobile-menu" aria-label="Mobile" hidden data-menu>
+      <ul>
+        {nav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ Hero ============ -->
+    <section class="wrap hero">
+      <div class="hero-grid">
+        <h1 class="hero-title" data-hero>{heroCopy.titleStart} <em>{heroCopy.titleEmphasis}</em></h1>
+        <div class="hero-side" data-hero>
+          <p>{heroCopy.text}</p>
+          <div class="hero-buttons">
+            <a href="#consult" class="btn btn-red">{heroCopy.primaryCta}</a>
+            <a href={tel} class="btn btn-outline">{business.phoneDisplay}</a>
+          </div>
+        </div>
+      </div>
+      <div class="hero-photo">
+        <Image
+          src={images.hero}
+          alt={heroCopy.imageAlt}
+          widths={[640, 960, 1280, images.hero.width]}
+          sizes="(min-width: 1440px) 1344px, calc(100vw - 2 * clamp(18px, 4vw, 48px))"
+          loading="eager"
+          fetchpriority="high"
+        />
+      </div>
+    </section>
+
+    <!-- ============ Proof strip ============ -->
+    <section class="wrap proof" aria-label="Why Long Life">
+      <div class="proof-grid">
+        {proof.map((p) => (
+          <div class="proof-item" data-reveal>
+            <span class="proof-title">{p.title}</span>
+            <span class="proof-text">{p.text}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ============ Products (Windows / Doors toggle) ============ -->
+    <section id="products" class="wrap products">
+      <div class="products-head">
+        <h2 class="h2" data-reveal>Custom made to fit your home.</h2>
+        <div class="segmented" role="tablist" aria-label="Products" data-reveal>
+          {products.map((p, i) => (
+            <button
+              class="toggle"
+              type="button"
+              role="tab"
+              id={`tab-${i}`}
+              aria-selected={i === 0 ? 'true' : 'false'}
+              aria-controls={`panel-${i}`}
+              tabindex={i === 0 ? 0 : -1}
+              data-tab={i}
+            >{p.tab}</button>
+          ))}
+        </div>
+      </div>
+      {products.map((p, i) => (
+        <div class="product-card" role="tabpanel" id={`panel-${i}`} aria-labelledby={`tab-${i}`} hidden={i !== 0} data-panel={i}>
+          <div class="product-image">
+            <Image
+              src={p.image}
+              alt={p.heading}
+              widths={[480, 768, p.image.width]}
+              sizes="(min-width: 1000px) 52vw, 100vw"
+            />
+          </div>
+          <div class="product-body">
+            <h3>{p.heading}</h3>
+            <p>{p.text}</p>
+            <ul class="product-list">
+              {p.list.map((item) => <li>{item}</li>)}
+            </ul>
+            <span class="product-note">{productsNote}</span>
+          </div>
+        </div>
+      ))}
+    </section>
+
+    <!-- ============ Story (dark) ============ -->
+    <section id="story" class="story">
+      <div class="wrap story-inner">
+        <div class="story-copy">
+          <h2 class="h2" data-reveal>{story.titleStart} <em>{story.titleEmphasis}</em></h2>
+          <p class="story-lead" data-reveal>{story.lead}</p>
+          <p class="story-text" data-reveal>{story.text}</p>
+        </div>
+        <ol class="timeline">
+          {timeline.map((t) => (
+            <li data-reveal>
+              <span class="timeline-year">{t.year}</span>
+              <span class="timeline-text">{t.text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ Neighbourhood (city filter + photos) ============ -->
+    <section id="neighbourhood" class="wrap hood">
+      <div class="hood-head">
+        <h2 class="h2" data-reveal>Homes like yours, in your neighbourhood.</h2>
+        <p data-reveal>A few of the homes we’ve fitted with new windows and doors across the Lower Mainland. Pick a city.</p>
+      </div>
+      <div class="city-filter" role="group" aria-label="Filter photos by city" data-reveal>
+        {cityButtons.map((c, i) => (
+          <button class="toggle" type="button" aria-pressed={i === 0 ? 'true' : 'false'} data-city={c.name}>
+            {c.name}<span class="city-count"><span class="sr-only">(</span>{c.count}<span class="sr-only"> photos)</span></span>
+          </button>
+        ))}
+      </div>
+      <div class="home-grid" data-home-grid>
+        {homesWithFull.map((h) => (
+          <button
+            class="home-tile"
+            type="button"
+            data-home-city={h.city}
+            data-full={h.full}
+            aria-label={`View larger photo: window and door replacement in ${h.city}`}
+          >
+            <Image
+              src={h.image}
+              alt={`Window and door replacement in ${h.city}`}
+              widths={[400, 640, h.image.width]}
+              sizes="(min-width: 1000px) 31vw, (min-width: 700px) 48vw, 100vw"
+              loading="lazy"
+            />
+            <span class="home-tile-label" aria-hidden="true">{h.city}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+
+    <!-- ============ Promises (white) ============ -->
+    <section class="promises" aria-label="Our promises">
+      <div class="wrap promises-inner">
+        {promises.map((p) => (
+          <div class="promise" data-reveal>
+            <h3>{p.title}</h3>
+            <p>{p.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ============ Consult (contact + form) ============ -->
+    <section id="consult" class="wrap consult">
+      <div class="consult-info">
+        <h2 class="consult-title" data-reveal>{consult.titleStart} <em>{consult.titleEmphasis}</em></h2>
+        <a class="consult-phone" href={tel} data-reveal>{business.phoneDisplay}</a>
+        <a class="consult-email" href={`mailto:${business.email}`} data-reveal>{business.email}</a>
+        <div class="consult-details" data-reveal>
+          <div>
+            <strong>Address</strong>
+            <span>{addr.street}<br />{addr.city}, {addr.region} {addr.postalCode}</span>
+          </div>
+          <div>
+            <strong>Connect</strong>
+            <a href={business.socials.instagram} target="_blank" rel="noopener">Instagram</a>
+            <a href={business.socials.homestars} target="_blank" rel="noopener">HomeStars</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-reveal>
+        <form
+          class="consult-form"
+          data-form
+          data-endpoint={FORM_ENDPOINT}
+          data-email={business.email}
+          data-subject={consult.emailSubject}
+          data-phone={business.phoneDisplay}
+          action={FORM_ENDPOINT || `mailto:${business.email}`}
+          method="post"
+        >
+          <div class="form-grid">
+            <label class="field">Name<input name="name" autocomplete="name" required /></label>
+            <label class="field">Phone<input name="phone" type="tel" autocomplete="tel" required /></label>
+            <label class="field">Email<input name="email" type="email" autocomplete="email" required /></label>
+            <label class="field">Address<input name="address" autocomplete="street-address" /></label>
+          </div>
+          <fieldset class="chips">
+            <legend class="sr-only">I’m interested in</legend>
+            <div class="chip-row">
+              {consult.chips.map((c) => (
+                <button class="toggle" type="button" aria-pressed="false" data-chip={c}>{c}</button>
+              ))}
+            </div>
+            <input type="hidden" name="interest" value="" data-chip-input />
+          </fieldset>
+          <label class="field">Tell us about your project<textarea name="message" rows="4"></textarea></label>
+          <!-- Honeypot: real people never see this. Bots that fill it are ignored by Formspree. -->
+          <div class="hp" aria-hidden="true">
+            <label>Leave this empty<input type="text" name="_gotcha" tabindex="-1" autocomplete="off" /></label>
+          </div>
+          <p class="form-error" role="alert" hidden data-form-error></p>
+          <button type="submit" class="btn btn-red">{consult.submitLabel}</button>
+        </form>
+        <div class="thank-you" role="status" tabindex="-1" hidden data-thanks>{consult.thankYou}</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ Footer ============ -->
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <span class="footer-logo">
+        <Image src={images.logo} alt={business.name} height={46} densities={[1, 2]} />
+      </span>
+      <span>{addr.street}, {addr.city} · <a href={tel}>{business.phoneDisplay}</a></span>
+      <div class="footer-legal">
+        <span>© {business.copyrightYear} {business.legalName}</span>
+        <a href="https://backpackdigitalmedia.com" target="_blank" rel="noopener">Powered by Backpack Digital Media</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============ Mobile sticky bar (below 1000px) ============ -->
+  <div class="mobile-bar">
+    <a href={tel} class="bar-call">Call</a>
+    <a href="#consult" class="bar-consult">Free consultation</a>
+  </div>
+
+  <!-- ============ Lightbox ============ -->
+  <div class="lightbox" role="dialog" aria-modal="true" aria-label="Project photo" hidden data-lightbox>
+    <button class="lightbox-close" type="button" aria-label="Close photo" data-lightbox-close>
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.5" fill="none" /></svg>
+    </button>
+    <img src="" alt="" data-lightbox-img />
+    <p class="lightbox-caption" data-lightbox-caption></p>
+  </div>
+</div>
+
+<script>
+  // ===================================================================
+  // Interactive bits, all plain JavaScript:
+  //   1. Mobile menu   2. Scroll reveal   3. Windows/Doors toggle
+  //   4. City filter   5. Lightbox        6. Form chips + submit
+  // ===================================================================
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- 1. Mobile menu ------------------------------------------------
+  const menuBtn = document.querySelector<HTMLButtonElement>('[data-menu-btn]')!;
+  const menu = document.querySelector<HTMLElement>('[data-menu]')!;
+  const setMenu = (open: boolean) => {
+    menuBtn.setAttribute('aria-expanded', String(open));
+    menu.hidden = !open;
+  };
+  menuBtn.addEventListener('click', () => setMenu(menu.hidden));
+  menu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !menu.hidden) { setMenu(false); menuBtn.focus(); }
+  });
+  // Close the menu if the screen gets wide enough to show the normal nav
+  window.matchMedia('(min-width: 1000px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); });
+
+  // ---- 2. Scroll reveal ----------------------------------------------
+  // Anything already on screen when the page loads is shown straight away;
+  // the rest fades up as it scrolls in. Only after that do we add the "js"
+  // class (which is what lets the CSS hide the not-yet-shown elements).
+  const revealEls = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+  const showAll = () => revealEls.forEach((el) => el.classList.add('is-shown'));
+  if (reduceMotion || !('IntersectionObserver' in window)) {
+    showAll();
+  } else {
+    revealEls.forEach((el) => {
+      if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('is-shown');
+    });
+    document.documentElement.classList.add('js');
+    const io = new IntersectionObserver((entries) => {
+      let i = 0;
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target as HTMLElement;
+        el.style.setProperty('--delay', `${i++ * 0.08}s`);
+        el.classList.add('is-animating', 'is-shown');
+        io.unobserve(el);
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    revealEls.forEach((el) => { if (!el.classList.contains('is-shown')) io.observe(el); });
+    // Safety net: never leave anything hidden for long
+    setTimeout(() => revealEls.forEach((el) => { el.classList.add('is-animating', 'is-shown'); }), 3500);
+  }
+
+  // Restart a CSS animation by removing and re-adding a class
+  const replay = (el: HTMLElement, cls: string) => {
+    el.classList.remove(cls);
+    void el.offsetWidth; // forces the browser to notice the removal
+    el.classList.add(cls);
+  };
+
+  // ---- 3. Windows / Doors toggle (tabs) -------------------------------
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tab]'));
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-panel]'));
+  const selectTab = (index: number, focus = false) => {
+    tabs.forEach((t, i) => {
+      const on = i === index;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      if (on && focus) t.focus();
+    });
+    panels.forEach((p, i) => {
+      const wasHidden = p.hidden;
+      p.hidden = i !== index;
+      if (!p.hidden && wasHidden) replay(p, 'is-switching');
+    });
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => selectTab(i));
+    // Arrow keys move between tabs (standard tab behaviour)
+    t.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const next = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        selectTab(next, true);
+      }
+    });
+  });
+
+  // ---- 4. City filter --------------------------------------------------
+  const cityBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-city]'));
+  const grid = document.querySelector<HTMLElement>('[data-home-grid]')!;
+  const tiles = Array.from(grid.querySelectorAll<HTMLButtonElement>('[data-home-city]'));
+  cityBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const city = btn.dataset.city;
+      cityBtns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      let n = 0;
+      tiles.forEach((tile) => {
+        const show = city === 'All' || tile.dataset.homeCity === city;
+        tile.hidden = !show;
+        if (show) tile.style.setProperty('--delay', `${Math.min(n++, 9) * 0.06}s`);
+      });
+      replay(grid, 'is-filtering');
+    });
+  });
+
+  // ---- 5. Lightbox -------------------------------------------------------
+  const lb = document.querySelector<HTMLElement>('[data-lightbox]')!;
+  const lbImg = lb.querySelector<HTMLImageElement>('[data-lightbox-img]')!;
+  const lbCaption = lb.querySelector<HTMLElement>('[data-lightbox-caption]')!;
+  const lbClose = lb.querySelector<HTMLButtonElement>('[data-lightbox-close]')!;
+  let lastFocus: HTMLElement | null = null;
+
+  const openLightbox = (tile: HTMLButtonElement) => {
+    lastFocus = tile;
+    const city = tile.dataset.homeCity || '';
+    lbImg.src = tile.dataset.full || '';
+    lbImg.alt = `Window and door replacement in ${city}`;
+    lbCaption.textContent = city;
+    lb.hidden = false;
+    document.body.classList.add('no-scroll');
+    lbClose.focus();
+  };
+  const closeLightbox = () => {
+    if (lb.hidden) return;
+    lb.hidden = true;
+    document.body.classList.remove('no-scroll');
+    lastFocus?.focus();
+  };
+  tiles.forEach((tile) => tile.addEventListener('click', () => openLightbox(tile)));
+  // Clicking anywhere on the dark backdrop (or the photo) closes it, as in the design
+  lb.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', (e) => {
+    if (lb.hidden) return;
+    if (e.key === 'Escape') closeLightbox();
+    // Keep keyboard focus inside the lightbox (the close button is the only control)
+    if (e.key === 'Tab') { e.preventDefault(); lbClose.focus(); }
+  });
+
+  // ---- 6. Form: chips + submit -------------------------------------------
+  const form = document.querySelector<HTMLFormElement>('[data-form]')!;
+  const thanks = document.querySelector<HTMLElement>('[data-thanks]')!;
+  const errorBox = document.querySelector<HTMLElement>('[data-form-error]')!;
+  const chipInput = form.querySelector<HTMLInputElement>('[data-chip-input]')!;
+  const chips = Array.from(form.querySelectorAll<HTMLButtonElement>('[data-chip]'));
+
+  // Chips toggle on/off and write the chosen ones into the hidden "interest" field
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      chip.setAttribute('aria-pressed', String(chip.getAttribute('aria-pressed') !== 'true'));
+      chipInput.value = chips
+        .filter((c) => c.getAttribute('aria-pressed') === 'true')
+        .map((c) => c.dataset.chip)
+        .join(', ');
+    });
+  });
+
+  const showThanks = () => {
+    form.hidden = true;
+    thanks.hidden = false;
+    thanks.focus();
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.hidden = true;
+    const data = new FormData(form);
+    if (data.get('_gotcha')) return; // a bot filled the honeypot: quietly ignore
+
+    const endpoint = form.dataset.endpoint;
+
+    if (endpoint) {
+      // ---- FORM_ENDPOINT is set (e.g. Formspree): send the form there ----
+      const submitBtn = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch(endpoint, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showThanks();
+      } catch {
+        errorBox.textContent = `Sorry, something went wrong sending your request. Please call us at ${form.dataset.phone}.`;
+        errorBox.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+      }
+      return;
+    }
+
+    // ---- No FORM_ENDPOINT yet: open the visitor's email app instead ----
+    // Builds an email to the business address with every field filled in.
+    const labels: Record<string, string> = {
+      name: 'Name', phone: 'Phone', email: 'Email', address: 'Address',
+      interest: 'Interested in', message: 'Project details',
+    };
+    const body = Object.entries(labels)
+      .map(([key, label]) => `${label}: ${String(data.get(key) || '').trim() || '-'}`)
+      .join('\n');
+    const mailto = `mailto:${form.dataset.email}?subject=${encodeURIComponent(form.dataset.subject || '')}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+    showThanks();
+  });
+</script>
+</body>
+</html>
